@@ -1,0 +1,7 @@
+# Example .gitignore file
+*.log
+*.tmp
+node_modules/
+
+# Ignore all files in a directory
+directory/
