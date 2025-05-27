@@ -3,5 +3,8 @@
 *.tmp
 node_modules/
 
+.env
+.package-lock.json
+
 # Ignore all files in a directory
 directory/

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+//User Schema 
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -19,7 +20,13 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String, // Optional field
   },
-  accountStatus:{type:String}
+  role: { type: String, enum: ["candidate", "recruiter"], required: true },
+  accountStatus:{type:String},
+  profileImage:{type:String},
+  profile: {
+    type: mongoose.Schema.Types.Mixed, // will handle dynamic schema manually
+    default: {}
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
