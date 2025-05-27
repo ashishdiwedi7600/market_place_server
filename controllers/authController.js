@@ -99,7 +99,10 @@ exports.profileUpdate = async (req, res) => {
         };
 
         await user.save();
-        res.json({ message: "Profile updated", userData: user });
+        res.send({ status: 200, data: {
+            message: 'Profile updated',
+            user:  user
+        } })
     } catch (error) {
         res.status(400).json({ error: error });
     }
