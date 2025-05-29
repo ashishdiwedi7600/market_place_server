@@ -1,13 +1,85 @@
-const { insertRecord, findRecordById } = require("../db_config/models")
+const {  findRecordById } = require("../db_config/models")
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { schemas } = require("../models/Candidate");
 const User = require("../models/User");
 const fs = require("fs");
+const pdfParse = require('pdf-parse');
+const mammoth = require("mammoth");
+const { NlpManager } = require('node-nlp');
+const { OpenAI } = require('openai');
 const { default: mongoose } = require("mongoose");
 const { cloudinaryFileUploadMethod } = require("../utils/cloudinary.utils");
+const { createOption, createsOption, getOptionsByType, optionExists } = require("../services/dropdownServices");
+const { insertRecord } = require("../services/userServices");
+const { extractEmail, extractPhone, extractSkills, extractSections } = require("../utils/helper");
+const path = require("path");
 
+const loadModel = async () => {
+    const manager = new NlpManager({ languages: ['en'], forceNER: true });
+    await manager.load('./model.nlp');
+    return manager;
+  };
+  
+  const extractFromText = async (text) => {
+    const manager = await loadModel();
+    const result = await manager.process('en', text);
+    return {
+      intent: result.intent,
+      entities: result.entities.map(e => ({
+        entity: e.entity,
+        value: e.utteranceText
+      }))
+    };
+  };
 
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+  
+  // Prompt template for GPT-4
+  const buildPrompt = (text) => `
+  You are a resume parsing expert. Extract the following fields in JSON format from the resume text below:
+  
+  Fields:
+  - name
+  - email
+  - phone
+  - skills (as an array)
+  - education (as an array of degree, institution, year if available)
+  - experience (as an array of job title, company, location, years if available)
+  - certifications (if any)
+  - summary or objective
+  
+  Resume Text:
+  """ 
+  ${text}
+  """
+  Return only a valid JSON object.
+  `;
+  
+  const extractResumeInfo = async (text) => {
+    const prompt = buildPrompt(text);
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.2
+    });
+  
+    const raw = completion.choices[0].message.content;
+  
+    try {
+      return JSON.parse(raw
+        .replace(/```json\s*/, '')  // remove starting ```json
+        .replace(/```$/, '')        // remove ending ```
+        .trim());
+    } catch (err) {
+      return { error: 'Invalid JSON from GPT', raw };
+    }
+  };
 
 exports.getAuthData=(req,res,next)=>{
     res.status(200).send({msg:'data fetched successfully'})
@@ -16,7 +88,6 @@ exports.getAuthData=(req,res,next)=>{
 
 exports.register = async (req, res) => {
     try {
-        // console.log(req.body)
         let { name, email, phone,password,role } = req.body
         const accountStatus = "verified"
     
@@ -107,4 +178,101 @@ exports.profileUpdate = async (req, res) => {
         res.status(400).json({ error: error });
     }
     
+}
+
+exports.addDropDown = async (req,res)=>{
+
+    try {
+        const payload = req.body;
+        let inserteditem = [];
+        if (!payload || (Array.isArray(payload) && payload.length === 0)) {
+            return res.status(400).json({ error: "Request body is empty" });
+        }
+
+
+        if (Array.isArray(payload)) {
+            for (let index = 0; index < payload.length; index++) {
+                let res = await optionExists(payload[index].type, payload[index].label)
+                if (!res?._id) {
+                    inserteditem.push(payload[index])
+                }
+            }
+            await createsOption(inserteditem); // Bulk insert
+        } else {
+            let res = await optionExists(payload.type, payload.label)
+            if (!res?._id) {
+                await createOption(payload);  // Single insert
+            }
+
+        }
+
+        // ✅ Return all data after insert
+        const allOptions = await getOptionsByType();
+
+        res.status(201).json({
+            message: "Inserted successfully",
+            data: allOptions,
+        });
+
+    } catch (error) {
+        res.status(400).json({ error: error });
+    }
+    
+}
+exports.getDropDownByType = async (req,res)=>{
+    try {
+        const {type} = req.params;
+    
+        const allOptions = await getOptionsByType(type);
+    
+        res.status(200).json({
+          message: "Data Fetched successfully",
+          data: allOptions,
+        });
+    } catch (error) {
+        res.status(400).json({ error: error });
+    }
+    
+}
+
+exports.parseProfile =async(req,res)=>{
+    const filePath = req.file.path;
+
+    try {
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const dataBuffer = fs.readFileSync(filePath);
+        let text;
+
+        if (ext === ".pdf") {
+            const pdfData = await pdfParse(dataBuffer);
+            text = pdfData.text;
+        } else if (ext === ".docx") {
+            const docData = await mammoth.extractRawText({ buffer: dataBuffer })
+            text = docData.value;
+        } else if (ext === ".doc") {
+            res.status(500).json({ error: '.doc type file is not supported' });
+            // Recommend user convert it or use unoconv
+        }
+
+    //   const extracted = await extractFromText(text); //use with nlp-reader
+      const extracted = await extractResumeInfo(text); //openAi api
+  
+      // Cleanup file
+      fs.unlinkSync(filePath);
+
+    //   on the basis of regex we are also extract some data
+    //   const email = extractEmail(text);
+    //   const phone = extractPhone(text);
+    //   const skills = extractSkills(text);
+    //   const sections = extractSections(text);
+
+    res.status(200).json({
+        message: "Data Extracted successfully",
+        extractedData:extracted
+    });
+  
+    } catch (error) {
+      fs.unlinkSync(filePath); // cleanup on error
+      res.status(500).json({ error: error.message });
+    }
 }

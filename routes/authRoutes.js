@@ -3,7 +3,7 @@ const { get } = require('express/lib/response');
 const authController = require('../controllers/authController');
 const { userLogin } = require('../validations/userValidate');
 const auth = require('../middleware/auth');
-const upload = require('../middleware/multerUpload');
+const {upload,uploadResume} = require('../middleware/multerUpload');
 
 
 
@@ -23,12 +23,16 @@ const upload = require('../middleware/multerUpload');
 
 function getRequest(){
     router.get('/getData',authController.getAuthData )
+    router.get('/getDropDown/:type',authController.getDropDownByType )
 
 }
 
 function postRequest(){
     router.post('/register',authController.register)
     router.post('/login',userLogin(),authController.login)
+    router.post('/addDropDown',authController.addDropDown )
+    router.post('/parseResume',uploadResume.single('resume'),authController.parseProfile)
+
 
 }
 

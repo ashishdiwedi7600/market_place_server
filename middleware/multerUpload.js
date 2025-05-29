@@ -21,7 +21,17 @@ const fileFilter = (req, file, cb) => {
     cb(new Error("Only PDF, DOC, and DOCX files are allowed."), false);
   }
 };
+const fileFilterResume = (req, file, cb) => {
+  const allowedTypes = [".pdf", ".doc", ".docx"];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowedTypes.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only PDF, DOC, and DOCX files are allowed."), false);
+  }
+};
 
 const upload = multer({ storage, fileFilter });
+const uploadResume = multer({ storage, fileFilterResume });
 
-module.exports = upload;
+module.exports = {upload,uploadResume};

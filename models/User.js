@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String, // Optional field
   },
-  role: { type: String, enum: ["candidate", "recruiter"], required: true },
+  role: { type: String, enum: ["candidate", "vendor"], required: true },
   accountStatus:{type:String},
   profileImage:{type:String},
   profile: {

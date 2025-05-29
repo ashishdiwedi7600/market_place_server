@@ -19,8 +19,12 @@
     "express-validator": "^7.2.1",
     "firebase-admin": "^13.4.0",
     "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.9.1",
     "mongoose": "^8.15.0",
     "multer": "^2.0.0",
-    "nodemon": "^3.1.10"
+    "node-nlp": "^5.0.0-alpha.5",
+    "nodemon": "^3.1.10",
+    "openai": "^4.103.0",
+    "pdf-parse": "^1.1.1"
   }
 }
