@@ -14,6 +14,7 @@ const { insertRecord, recordEsist, updateRecordByFilter } = require("../services
 const { extractEmail, extractPhone, extractSkills, extractSections, generateRandomToken } = require("../utils/helper");
 const path = require("path");
 const sendVerificationEmail = require("../utils/sendVerification");
+const { validationResult } = require("express-validator");
 
 const loadModel = async () => {
     const manager = new NlpManager({ languages: ['en'], forceNER: true });
@@ -116,8 +117,14 @@ exports.register = async (req, res) => {
     }
 }
 
-exports.login = async (req, res) => {
-    try {    
+exports.login = async (req, res,next) => {
+    try {  
+        const errors = validationResult(req);  
+        if (!errors.isEmpty()) {
+            const error = new Error(errors.array()[0].msg);
+            error.status = 400;
+            return next(error);
+          }
         const token = jwt.sign(
             { userId: req.foundUser._id, email: req.foundUser.email },
             process.env.JWT_SECRET,

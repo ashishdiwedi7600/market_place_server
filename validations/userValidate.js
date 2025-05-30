@@ -16,18 +16,15 @@ exports.userLogin =  () => {
       .custom((value, { req }) => {
         return User.findOne({email:req.body.email }).then(async user =>  {
             const match = await bcrypt.compare(req.body.password, user.password)
-            if (match) {
-                if (user.accountStatus == "verified") {
-                    req.foundUser = user;
-                    return true;
-                } else {
-                    console.log("not verified user");
-
-                }
-
+            if (!match) {
+              throw new Error('Invalid password');
             }
-            throw new Error('User Does Not Exist')
-            ;
+    
+            if (!user.isVerified) {
+              throw new Error('User is not verified');
+            }
+            req.foundUser = user;
+            return true;
 
         })
       })
