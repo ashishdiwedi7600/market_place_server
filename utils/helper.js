@@ -31,5 +31,7 @@ const extractSections = (text) => {
 
     return sections;
 };
+const generateRandomToken = () =>
+    Math.random().toString(36).substring(2) + Date.now().toString(36);
 
-module.exports = { extractEmail, extractPhone, extractSections, extractSkills }
+module.exports = { extractEmail, extractPhone, extractSections, extractSkills,generateRandomToken }

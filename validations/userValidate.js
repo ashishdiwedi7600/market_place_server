@@ -3,7 +3,6 @@ const bcrypt = require('bcrypt')
 const User = require('../models/User');
 exports.validateSignup = () => {
   return [
-
     body('emailphone').isEmail().withMessage('Invalid Email'),
     body('password').exists().withMessage('pasword is mandatory')
   ]

@@ -1,5 +1,5 @@
 const User = require("../models/User");
-const { insertMany, findById } = require("./mongoServices");
+const { insertMany, findById, exists, updateOne } = require("./mongoServices");
 
 const insertRecord = async (records) => {
     return new Promise(async(resolve, reject) => {
@@ -7,7 +7,7 @@ const insertRecord = async (records) => {
             .then(r => {                
                 resolve({ status: 200, msg: 'added successfully' })               
             })
-            .catch(e => { reject(e)})
+            .catch(e => { console.log("erorrrrrrrr",e), reject(e)})
     })
 }
 
@@ -21,8 +21,30 @@ const findRecordById = async (id) => {
             .catch(e => { reject(e)})
     })
 }
+const recordEsist = async (value) => {
+
+    return new Promise(async(resolve, reject) => {
+        await exists(User,value)
+            .then(r => {
+                resolve(r)                
+            })
+            .catch(e => { reject(e)})
+    })
+}
+const updateRecordByFilter = async (filter,update) => {
+
+    return new Promise(async(resolve, reject) => {
+        await updateOne(User,filter,update)
+            .then(r => {
+                resolve(r)                
+            })
+            .catch(e => { reject(e)})
+    })
+}
 
 module.exports={
     insertRecord,
-    findRecordById
+    findRecordById,
+    recordEsist,
+    updateRecordByFilter
 }

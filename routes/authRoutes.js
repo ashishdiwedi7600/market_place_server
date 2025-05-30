@@ -31,6 +31,7 @@ function postRequest(){
     router.post('/register',authController.register)
     router.post('/login',userLogin(),authController.login)
     router.post('/addDropDown',authController.addDropDown )
+    router.post('/verify',authController.sendVerification )
     router.post('/parseResume',uploadResume.single('resume'),authController.parseProfile)
 
 

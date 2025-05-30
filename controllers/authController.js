@@ -2,7 +2,6 @@ const {  findRecordById } = require("../db_config/models")
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { schemas } = require("../models/Candidate");
-const User = require("../models/User");
 const fs = require("fs");
 const pdfParse = require('pdf-parse');
 const mammoth = require("mammoth");
@@ -11,9 +10,10 @@ const { OpenAI } = require('openai');
 const { default: mongoose } = require("mongoose");
 const { cloudinaryFileUploadMethod } = require("../utils/cloudinary.utils");
 const { createOption, createsOption, getOptionsByType, optionExists } = require("../services/dropdownServices");
-const { insertRecord } = require("../services/userServices");
-const { extractEmail, extractPhone, extractSkills, extractSections } = require("../utils/helper");
+const { insertRecord, recordEsist, updateRecordByFilter } = require("../services/userServices");
+const { extractEmail, extractPhone, extractSkills, extractSections, generateRandomToken } = require("../utils/helper");
 const path = require("path");
+const sendVerificationEmail = require("../utils/sendVerification");
 
 const loadModel = async () => {
     const manager = new NlpManager({ languages: ['en'], forceNER: true });
@@ -89,22 +89,30 @@ exports.getAuthData=(req,res,next)=>{
 exports.register = async (req, res) => {
     try {
         let { name, email, phone,password,role } = req.body
-        const accountStatus = "verified"
-    
-    
-        await bcrypt.hash(password, 10, async function (err, hash) {
-            if (err) return new Error("somme error occurred");
-            password = hash
-            let result = await insertRecord({ name, email, phone, password, accountStatus,role })
-            if (result.status === 200) {            
-                    res.send({ status: 200, msg: "user added successfully" })
-            }
-            else {
-                res.send(500)
-            }
-        })
-    } catch (error) {
-        res.status(400).json({ error: error });
+
+        const emailExist = await recordEsist({email:email})
+
+        if (!emailExist) {
+            const verificationToken = generateRandomToken();
+
+            await bcrypt.hash(password, 10, async function (err, hash) {
+                if (err) return new Error("somme error occurred");
+                password = hash
+                let result = await insertRecord({ name, email, phone, password,role,verificationToken })
+                if (result.status === 200) {  
+                    const resmail = await sendVerificationEmail(email,name,verificationToken)          
+                        res.send({ status: 200, msg: "user added successfully Pls verify your email" })
+                }
+                else {                    
+                    res.send(500)
+                }
+            }) 
+        }
+        else{
+            throw new Error("User already registered for this email");            
+        }      
+    } catch (error) { 
+        throw new Error(error);       
     }
 }
 
@@ -216,6 +224,31 @@ exports.addDropDown = async (req,res)=>{
 
     } catch (error) {
         res.status(400).json({ error: error });
+    }
+    
+}
+exports.sendVerification = async (req,res)=>{
+    try {      
+        const {token}=req.query;
+
+        const emailExist = await recordEsist({verificationToken:token})
+        if (emailExist) {
+            const update = {
+                verificationToken:'',
+                isVerified:true
+            }
+            const result = await updateRecordByFilter(emailExist,update)
+            res.send({ status: 200, data: {
+                message: 'User has been verified successfully',
+                result
+            } })
+        }
+        else{
+            throw new Error("Invalid token");  
+        }
+
+    } catch (error) {
+        throw new Error(error);
     }
     
 }
